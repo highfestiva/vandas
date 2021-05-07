@@ -3,15 +3,22 @@ module vandas
 import math
 import rand
 
+const (
+	nan = math.nan()
+)
+
 union Data {
 	data_int []int
+	data_u64 []u64
 	data_f64 []f64
 	data_str []string
 }
 
 enum DType {
 	dint
+	du64
 	df64
+	dunix_ms
 	dstr
 }
 
@@ -21,22 +28,18 @@ mut:
 	ser Series
 }
 
-struct Series {
+pub struct Series {
 mut:
 	name  string
 	dtype DType
 	data  Data
 }
 
-struct DataFrame {
+pub struct DataFrame {
 mut:
 	index Series
 	cols  []Series
 }
-
-const (
-	nan = math.nan()
-)
 
 fn rnd(i int) []f64 {
 	mut a := []f64{len: i, cap: i}
@@ -58,36 +61,40 @@ fn maxlen(astr []string) int {
 
 fn int_to_str(data []int) []string {
 	mut a := []string{len: data.len}
-	mut i := 0
-	for v in data {
+	for i, v in data {
 		a[i] = '${v:d}'
-		i++
+	}
+	return a
+}
+
+fn u64_to_str(data []u64) []string {
+	mut a := []string{len: data.len}
+	for i, v in data {
+		a[i] = '${int(v):d}'
 	}
 	return a
 }
 
 fn f64_to_str(data []f64) []string {
 	mut a := []string{len: data.len}
-	mut i := 0
-	for v in data {
+	for i, v in data {
 		if !math.is_nan(v) {
 			a[i] = '${v:.4f}'
 		} else {
 			a[i] = 'NaN'
 		}
-		i++
 	}
 	return a
 }
 
-fn (ser Series) rolling(window int) Roller {
+pub fn (ser Series) rolling(window int) Roller {
 	return Roller{
 		ser: ser
 		window: window
 	}
 }
 
-fn (r Roller) mean() Series {
+pub fn (r Roller) mean() Series {
 	arr := r.ser.get_f64()
 	assert r.window > 0
 	assert r.window < arr.len
@@ -116,7 +123,7 @@ fn (r Roller) mean() Series {
 	}
 }
 
-fn create_ser(name string, values []f64) Series {
+pub fn create_ser(name string, values []f64) Series {
 	return Series{
 		name: name
 		dtype: .df64
@@ -126,28 +133,35 @@ fn create_ser(name string, values []f64) Series {
 	}
 }
 
-fn (ser Series) get_int() []int {
+pub fn (ser Series) get_int() []int {
 	assert ser.dtype == .dint
 	unsafe {
 		return ser.data.data_int
 	}
 }
 
-fn (ser Series) get_f64() []f64 {
+pub fn (ser Series) get_u64() []u64 {
+	assert ser.dtype == .du64 || ser.dtype == .dunix_ms
+	unsafe {
+		return ser.data.data_u64
+	}
+}
+
+pub fn (ser Series) get_f64() []f64 {
 	assert ser.dtype == .df64
 	unsafe {
 		return ser.data.data_f64
 	}
 }
 
-fn (ser Series) get_str() []string {
+pub fn (ser Series) get_str() []string {
 	assert ser.dtype == .dstr
 	unsafe {
 		return ser.data.data_str
 	}
 }
 
-fn (a Series) mul(b f64) Series {
+pub fn (a Series) mul(b f64) Series {
 	assert a.dtype == .df64
 	mut c := a.get_f64().clone()
 	for i in 0 .. c.len {
@@ -162,12 +176,14 @@ fn (a Series) mul(b f64) Series {
 	}
 }
 
-fn (ser Series) len() int {
+pub fn (ser Series) len() int {
 	unsafe {
 		return match ser.dtype {
-			.dint { ser.data.data_int.len }
-			.df64 { ser.data.data_f64.len }
-			.dstr { ser.data.data_str.len }
+			.dint      { ser.data.data_int.len }
+			.du64      { ser.data.data_u64.len }
+			.df64      { ser.data.data_f64.len }
+			.dunix_ms { ser.data.data_u64.len }
+			.dstr      { ser.data.data_str.len }
 		}
 	}
 }
@@ -189,10 +205,20 @@ pub fn (ser Series) str() string {
 	return s
 }
 
-fn (ser Series) as_str() Series {
+pub fn (ser Series) as_str() Series {
 	return match ser.dtype {
 		.dint {
 			a := int_to_str(ser.get_int())
+			Series{
+				name: ser.name
+				dtype: .dstr
+				data: Data{
+					data_str: a
+				}
+			}
+		}
+		.du64 {
+			a := u64_to_str(ser.get_u64())
 			Series{
 				name: ser.name
 				dtype: .dstr
@@ -211,13 +237,23 @@ fn (ser Series) as_str() Series {
 				}
 			}
 		}
+		.dunix_ms {
+			a := unix_to_str(ser.get_u64())
+			Series{
+				name: ser.name
+				dtype: .dstr
+				data: Data{
+					data_str: a
+				}
+			}
+		}
 		.dstr {
 			ser
 		}
 	}
 }
 
-fn create_data_frame(m map[string][]f64) DataFrame {
+pub fn create_data_frame(m map[string][]f64) DataFrame {
 	mut df := DataFrame{
 		cols: []Series{len: m.len}
 	}
@@ -244,12 +280,10 @@ fn create_data_frame(m map[string][]f64) DataFrame {
 	return df
 }
 
-fn (a DataFrame) mul(b f64) DataFrame {
+pub fn (a DataFrame) mul(b f64) DataFrame {
 	mut cols := []Series{len: a.cols.len}
-	mut i := 0
-	for ser in a.cols {
+	for i, ser in a.cols {
 		cols[i] = ser.mul(b)
-		i++
 	}
 	return DataFrame{
 		cols: cols
@@ -257,17 +291,15 @@ fn (a DataFrame) mul(b f64) DataFrame {
 	}
 }
 
-fn (df DataFrame) columns() []string {
+pub fn (df DataFrame) columns() []string {
 	mut cols := []string{len: df.cols.len}
-	mut i := 0
-	for ser in df.cols {
+	for i, ser in df.cols {
 		cols[i] = ser.name
-		i++
 	}
 	return cols
 }
 
-fn (df DataFrame) len() int {
+pub fn (df DataFrame) len() int {
 	return df.index.len()
 }
 
@@ -277,23 +309,19 @@ pub fn (df DataFrame) str() string {
 	mut str_sers := []Series{len: 1 + df.cols.len}
 	mut sers := [df.index]
 	sers << df.cols
-	mut i := 0
-	for ser in sers {
+	for i, ser in sers {
 		str_sers[i] = ser.as_str()
 		mut row_strs := str_sers[i].get_str().clone()
 		row_strs << [ser.name]
 		width[i] = maxlen(row_strs)
-		i++
 	}
 
 	// columns
 	pad := '                                        '
 	mut row_strs := []string{len: sers.len}
-	i = 0
-	for ser in sers {
+	for i, ser in sers {
 		w := width[i]
 		row_strs[i] = pad[0..(w - ser.name.len)] + ser.name
-		i++
 	}
 	mut s := row_strs.join('  ')
 
@@ -303,11 +331,9 @@ pub fn (df DataFrame) str() string {
 		s += '\n[empty DataFrame]'
 	}
 	for r in 0 .. l {
-		i = 0
-		for ser in str_sers {
+		for i, ser in str_sers {
 			w := width[i]
 			row_strs[i] = pad[0..(w - ser.get_str()[r].len)] + ser.get_str()[r]
-			i++
 		}
 		s += '\n' + row_strs.join('  ')
 	}
