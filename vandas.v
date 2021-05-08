@@ -2,19 +2,20 @@ module vandas
 
 import math
 import rand
+import strconv
 
 const (
 	nan = math.nan()
 )
 
-union Data {
+pub union Data {
 	data_int []int
 	data_u64 []u64
 	data_f64 []f64
 	data_str []string
 }
 
-enum DType {
+pub enum DType {
 	dint
 	du64
 	df64
@@ -87,6 +88,22 @@ fn f64_to_str(data []f64) []string {
 	return a
 }
 
+fn str_to_int(data []string) ?[]int {
+	mut d := []int{len: data.len}
+	for i, s in data {
+		d[i] = strconv.atoi(s) ?
+	}
+	return d
+}
+
+fn str_to_f64(data []string) ?[]f64 {
+	mut d := []f64{len: data.len}
+	for i, s in data {
+		d[i] = strconv.atof64(s)
+	}
+	return d
+}
+
 pub fn (ser Series) rolling(window int) Roller {
 	return Roller{
 		ser: ser
@@ -129,6 +146,34 @@ pub fn create_series(name string, values []f64) Series {
 		dtype: .df64
 		data: Data{
 			data_f64: values
+		}
+	}
+}
+
+fn create_series_guess_dtype(name string, values []string) Series {
+	ints := str_to_int(values) or {
+		floats := str_to_f64(values) or {
+			return Series{
+				name: name
+				dtype: .dstr
+				data: Data{
+					data_str: values
+				}
+			}
+		}
+		return Series{
+			name: name
+			dtype: .df64
+			data: Data{
+				data_f64: floats
+			}
+		}
+	}
+	return Series{
+		name: name
+		dtype: .dint
+		data: Data{
+			data_int: ints
 		}
 	}
 }
@@ -266,6 +311,15 @@ pub fn create_data_frame(m map[string][]f64) DataFrame {
 		df.cols[i] = s
 		i++
 	}
+	df.reset_index()
+	return df
+}
+
+pub fn (mut df DataFrame) reset_index() {
+	l := match df.cols.len {
+		0 { 0 }
+		else { df.cols[0].len() }
+	}
 	mut idx := []int{len: l}
 	for j in 0 .. l {
 		idx[j] = j
@@ -277,7 +331,6 @@ pub fn create_data_frame(m map[string][]f64) DataFrame {
 			data_int: idx
 		}
 	}
-	return df
 }
 
 pub fn (a DataFrame) mul(b f64) DataFrame {
