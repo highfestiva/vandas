@@ -102,7 +102,7 @@ pub fn (r Roller) mean() Series {
 
 	// start with NaNs
 	for i in 0 .. r.window - 1 {
-		out[i] = nan
+		out[i] = vandas.nan
 	}
 
 	// rolling window mean
@@ -123,7 +123,7 @@ pub fn (r Roller) mean() Series {
 	}
 }
 
-pub fn create_ser(name string, values []f64) Series {
+pub fn create_series(name string, values []f64) Series {
 	return Series{
 		name: name
 		dtype: .df64
@@ -179,11 +179,11 @@ pub fn (a Series) mul(b f64) Series {
 pub fn (ser Series) len() int {
 	unsafe {
 		return match ser.dtype {
-			.dint      { ser.data.data_int.len }
-			.du64      { ser.data.data_u64.len }
-			.df64      { ser.data.data_f64.len }
+			.dint { ser.data.data_int.len }
+			.du64 { ser.data.data_u64.len }
+			.df64 { ser.data.data_f64.len }
 			.dunix_ms { ser.data.data_u64.len }
-			.dstr      { ser.data.data_str.len }
+			.dstr { ser.data.data_str.len }
 		}
 	}
 }
@@ -262,7 +262,7 @@ pub fn create_data_frame(m map[string][]f64) DataFrame {
 	for k, v in m {
 		assert i == 0 || l == v.len
 		l = v.len
-		s := create_ser(k, v)
+		s := create_series(k, v)
 		df.cols[i] = s
 		i++
 	}

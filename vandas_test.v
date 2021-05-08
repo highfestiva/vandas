@@ -13,7 +13,7 @@ fn test_f64_to_str() {
 }
 
 fn test_rolling_mean() {
-	ser := create_ser('rull', [1.0, 11.0, 111.0])
+	ser := create_series('rull', [1.0, 11.0, 111.0])
 	t := ser.rolling(2).mean().str()
 	assert t.contains('NaN\n')
 	assert t.contains('6.0')

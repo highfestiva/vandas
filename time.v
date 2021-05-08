@@ -17,21 +17,21 @@ fn parse_time(s string, mut ttype &TimeType) ?u64 {
 				ttype = .datetime
 				time.parse(s) or {
 					ttype = .datetime_rfc2822
-					time.parse_rfc2822(s)?
+					time.parse_rfc2822(s) ?
 				}
 			}
 			t.unix_time_milli()
 		}
 		.datetime {
-			t := time.parse(s)?
+			t := time.parse(s) ?
 			t.unix_time_milli()
 		}
 		.datetime_iso8601 {
-			t := time.parse_iso8601(s)?
+			t := time.parse_iso8601(s) ?
 			t.unix_time_milli()
 		}
 		.datetime_rfc2822 {
-			t := time.parse_rfc2822(s)?
+			t := time.parse_rfc2822(s) ?
 			t.unix_time_milli()
 		}
 	}
@@ -57,7 +57,7 @@ pub fn (ser Series) to_time() ?Series {
 pub fn unix_to_str(data []u64) []string {
 	mut a := []string{len: data.len}
 	for i, v in data {
-		a[i] = time.unix2(int(v/1000), int(v%1000)).str()
+		a[i] = time.unix2(int(v / 1000), int(v % 1000)).str()
 	}
 	return a
 }
