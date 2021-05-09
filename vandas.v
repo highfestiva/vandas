@@ -9,14 +9,14 @@ const (
 )
 
 pub union Data {
-	data_int []int
+	data_i64 []i64
 	data_u64 []u64
 	data_f64 []f64
 	data_str []string
 }
 
 pub enum DType {
-	dint
+	di64
 	du64
 	df64
 	dunix_ms
@@ -60,10 +60,10 @@ fn maxlen(astr []string) int {
 	return l
 }
 
-fn int_to_str(data []int) []string {
+fn i64_to_str(data []i64) []string {
 	mut a := []string{len: data.len}
 	for i, v in data {
-		a[i] = '${v:d}'
+		a[i] = '${int(v):d}' // TODO
 	}
 	return a
 }
@@ -71,7 +71,7 @@ fn int_to_str(data []int) []string {
 fn u64_to_str(data []u64) []string {
 	mut a := []string{len: data.len}
 	for i, v in data {
-		a[i] = '${int(v):d}'
+		a[i] = '${int(v):d}' // TODO
 	}
 	return a
 }
@@ -88,8 +88,8 @@ fn f64_to_str(data []f64) []string {
 	return a
 }
 
-fn str_to_int(data []string) ?[]int {
-	mut d := []int{len: data.len}
+fn str_to_i64(data []string) ?[]i64 {
+	mut d := []i64{len: data.len}
 	for i, s in data {
 		d[i] = strconv.atoi(s) ?
 	}
@@ -151,7 +151,7 @@ pub fn create_series(name string, values []f64) Series {
 }
 
 fn create_series_guess_dtype(name string, values []string) Series {
-	ints := str_to_int(values) or {
+	ints := str_to_i64(values) or {
 		floats := str_to_f64(values) or {
 			return Series{
 				name: name
@@ -171,17 +171,17 @@ fn create_series_guess_dtype(name string, values []string) Series {
 	}
 	return Series{
 		name: name
-		dtype: .dint
+		dtype: .di64
 		data: Data{
-			data_int: ints
+			data_i64: ints
 		}
 	}
 }
 
-pub fn (ser Series) get_int() []int {
-	assert ser.dtype == .dint
+pub fn (ser Series) get_i64() []i64 {
+	assert ser.dtype == .di64
 	unsafe {
-		return ser.data.data_int
+		return ser.data.data_i64
 	}
 }
 
@@ -224,7 +224,7 @@ pub fn (a Series) mul(b f64) Series {
 pub fn (ser Series) len() int {
 	unsafe {
 		return match ser.dtype {
-			.dint { ser.data.data_int.len }
+			.di64 { ser.data.data_i64.len }
 			.du64 { ser.data.data_u64.len }
 			.df64 { ser.data.data_f64.len }
 			.dunix_ms { ser.data.data_u64.len }
@@ -252,8 +252,8 @@ pub fn (ser Series) str() string {
 
 pub fn (ser Series) as_str() Series {
 	return match ser.dtype {
-		.dint {
-			a := int_to_str(ser.get_int())
+		.di64 {
+			a := i64_to_str(ser.get_i64())
 			Series{
 				name: ser.name
 				dtype: .dstr
@@ -320,17 +320,28 @@ pub fn (mut df DataFrame) reset_index() {
 		0 { 0 }
 		else { df.cols[0].len() }
 	}
-	mut idx := []int{len: l}
+	mut idx := []i64{len: l}
 	for j in 0 .. l {
 		idx[j] = j
 	}
 	df.index = Series{
 		name: ''
-		dtype: .dint
+		dtype: .di64
 		data: Data{
-			data_int: idx
+			data_i64: idx
 		}
 	}
+}
+
+pub fn (mut df DataFrame) set_index(name string) ? {
+	for i, c in df.cols {
+		if name == c.name {
+			df.index = c
+			df.cols.delete(i)
+			return
+		}
+	}
+	return error('set_index: no such index "$name"')
 }
 
 pub fn (a DataFrame) mul(b f64) DataFrame {

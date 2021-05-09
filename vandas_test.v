@@ -4,8 +4,8 @@ fn test_maxlen() {
 	assert maxlen(['a', 'ab', 'b']) == 2
 }
 
-fn test_int_to_str() {
-	assert int_to_str([7, 33, -2]) == ['7', '33', '-2']
+fn test_i64_to_str() {
+	assert i64_to_str([i64(7), i64(33), i64(-2)]) == ['7', '33', '-2']
 }
 
 fn test_f64_to_str() {
